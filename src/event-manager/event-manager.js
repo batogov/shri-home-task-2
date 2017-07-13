@@ -5,15 +5,26 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         mousedown: 'start',
         mousemove: 'move',
         mouseup: 'end',
+
         touchstart: 'start',
         touchmove: 'move',
         touchend: 'end',
-        touchcancel: 'end'
+        touchcancel: 'end',
+
+        wheel: 'wheel',
+
+        pointerdown: 'start',
+        pointermove: 'move',
+        pointerup: 'end',
+        pointercancel: 'end',
+        pointerleave: 'end'
     };
 
     function EventManager(elem, callback) {
         this._elem = elem;
         this._callback = callback;
+        this._pointers = {};
+
         this._setupListeners();
     }
 
@@ -23,16 +34,31 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         },
 
         _setupListeners: function () {
-            this._mouseListener = this._mouseEventHandler.bind(this);
-            this._touchListener = this._touchEventHandler.bind(this);
-            this._addEventListeners('mousedown', this._elem, this._mouseListener);
-            this._addEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._touchListener);
+            // Если у клиента не поддерживаются Pointer Events, то вешаем touch и mouse события
+            if (!window.PointerEvent) {
+                this._mouseListener = this._mouseEventHandler.bind(this);
+                this._touchListener = this._touchEventHandler.bind(this);
+
+                this._addEventListeners('mousedown', this._elem, this._mouseListener);
+                this._addEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._touchListener);
+            }
+
+            this._pointerListener = this._pointerEventHandler.bind(this);
+            this._wheelListener = this._wheelEventHandler.bind(this);
+
+            this._addEventListeners('pointerdown pointermove pointerup pointercancel pointerleave', this._elem, this._pointerListener);
+            this._addEventListeners('wheel', this._elem, this._wheelListener);
         },
 
         _teardownListeners: function () {
-            this._removeEventListeners('mousedown', this._elem, this._mouseListener);
-            this._removeEventListeners('mousemove mouseup', document.documentElement, this._mouseListener);
+            if (!window.PointerEvent) {
+                this._removeEventListeners('mousedown', this._elem, this._mouseListener);
+                this._removeEventListeners('mousemove mouseup', document.documentElement, this._mouseListener);
+            }
+
             this._removeEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._touchListener);
+            this._removeEventListeners('pointerdown pointermove pointerup pointercancel pointerleave', this._elem, this._pointerListener);
+            this._removeEventListeners('wheel', this._elem, this._wheelListener);
         },
 
         _addEventListeners: function (types, elem, callback) {
@@ -48,6 +74,8 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         },
 
         _mouseEventHandler: function (event) {
+            console.log('Mouse');
+
             event.preventDefault();
 
             if (event.type === 'mousedown') {
@@ -68,11 +96,24 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             });
         },
 
+        _wheelEventHandler: function (event) {
+            console.log('Wheel');
+
+            event.preventDefault();
+
+            this._callback({
+                type: EVENTS[event.type],
+                deltaY: event.deltaY
+            });
+        },
+
         _touchEventHandler: function (event) {
+            console.log('Touch');
+
             event.preventDefault();
 
             var touches = event.touches;
-            // touchend/touchcancel
+
             if (touches.length === 0) {
                 touches = event.changedTouches;
             }
@@ -89,8 +130,18 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             } else {
                 var firstTouch = touches[0];
                 var secondTouch = touches[1];
-                targetPoint = this._calculateTargetPoint(firstTouch, secondTouch);
-                distance = this._calculateDistance(firstTouch, secondTouch);
+
+                targetPoint = this._calculateTargetPoint(firstTouch.clientX, 
+                    firstTouch.clientY,
+                    secondTouch.clientX,
+                    secondTouch.clientY
+                );
+
+                distance = this._calculateDistance(firstTouch.clientX, 
+                    firstTouch.clientY,
+                    secondTouch.clientX,
+                    secondTouch.clientY
+                );
             }
 
             targetPoint.x -= elemOffset.x;
@@ -103,17 +154,72 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             });
         },
 
-        _calculateTargetPoint: function (firstTouch, secondTouch) {
+        _pointerEventHandler: function (event) {
+            console.log('Pointer', EVENTS[event.type]);
+
+            var targetPoint;
+            var distance = 1;
+            var elemOffset = this._calculateElementOffset(this._elem);
+
+            if (event.type === 'pointerdown') {
+                if (Object.keys(this._pointers).length === 2) {
+                    this._pointers = {};
+                }
+            }
+
+            this._pointers[event.pointerId] = {
+                x: event.clientX,
+                y: event.clientY
+            }
+
+            if (event.type === 'pointerup' || event.type === 'pointerleave' || event.type === 'pointercancel') {
+                delete this._pointers[event.pointerId];
+            }
+
+            if (Object.keys(this._pointers).length === 2) {
+                var firstTouch = this._pointers[Object.keys(this._pointers)[0]];
+                var secondTouch = this._pointers[Object.keys(this._pointers)[1]];
+
+                targetPoint = this._calculateTargetPoint(firstTouch.x, 
+                    firstTouch.y,
+                    secondTouch.x,
+                    secondTouch.y
+                );
+
+                distance = this._calculateDistance(firstTouch.x, 
+                    firstTouch.y,
+                    secondTouch.x,
+                    secondTouch.y
+                );
+            } else {
+                var targetPoint = {
+                    x: event.clientX - elemOffset.x,
+                    y: event.clientY - elemOffset.y
+                };
+            }
+
+            targetPoint.x -= elemOffset.x;
+            targetPoint.y -= elemOffset.y;
+
+            this._callback({
+                type: EVENTS[event.type],
+                targetPoint: targetPoint,
+                distance: distance
+            });
+
+        },
+
+        _calculateTargetPoint: function (firstTouchX, firstTouchY, secondTouchX, secondTouchY) {
             return {
-                x: (secondTouch.clientX + firstTouch.clientX) / 2,
-                y: (secondTouch.clientY + firstTouch.clientY) / 2
+                x: (secondTouchX + firstTouchX) / 2,
+                y: (secondTouchY + firstTouchY) / 2
             };
         },
 
-        _calculateDistance: function (firstTouch, secondTouch) {
+        _calculateDistance: function (firstTouchX, firstTouchY, secondTouchX, secondTouchY) {
             return Math.sqrt(
-                Math.pow(secondTouch.clientX - firstTouch.clientX, 2) +
-                Math.pow(secondTouch.clientY - firstTouch.clientY, 2)
+                Math.pow(secondTouchX - firstTouchX, 2) +
+                Math.pow(secondTouchY - firstTouchY, 2)
             );
         },
 
