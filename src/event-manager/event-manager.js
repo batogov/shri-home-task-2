@@ -16,13 +16,14 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         pointerdown: 'start',
         pointermove: 'move',
         pointerup: 'end',
-        pointercancel: 'end',
-        pointerleave: 'end'
+        pointercancel: 'end'
     };
 
     function EventManager(elem, callback) {
         this._elem = elem;
         this._callback = callback;
+
+        this._isDebug = true;
         this._pointers = {};
 
         this._setupListeners();
@@ -34,19 +35,24 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         },
 
         _setupListeners: function () {
-            // Если у клиента не поддерживаются Pointer Events, то вешаем touch и mouse события
+            // Если у клиента не поддерживаются Pointer Events, 
+            // то вешаем touch и mouse события. Иначе – только Pointer Events
             if (!window.PointerEvent) {
                 this._mouseListener = this._mouseEventHandler.bind(this);
-                this._touchListener = this._touchEventHandler.bind(this);
-
                 this._addEventListeners('mousedown', this._elem, this._mouseListener);
+
+                this._touchListener = this._touchEventHandler.bind(this);
                 this._addEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._touchListener);
+            } else {
+                this._pointerListener = this._pointerEventHandler.bind(this);
+                this._addEventListeners('pointerdown', this._elem, this._pointerListener);
+            
+                // Блокируем default поведение у touch событий
+                this._addEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._preventTouch);
             }
 
-            this._pointerListener = this._pointerEventHandler.bind(this);
+            // Вешаем обработчик на колёсико мыши
             this._wheelListener = this._wheelEventHandler.bind(this);
-
-            this._addEventListeners('pointerdown pointermove pointerup pointercancel pointerleave', this._elem, this._pointerListener);
             this._addEventListeners('wheel', this._elem, this._wheelListener);
         },
 
@@ -54,11 +60,14 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             if (!window.PointerEvent) {
                 this._removeEventListeners('mousedown', this._elem, this._mouseListener);
                 this._removeEventListeners('mousemove mouseup', document.documentElement, this._mouseListener);
-            }
 
-            this._removeEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._touchListener);
-            this._removeEventListeners('pointerdown pointermove pointerup pointercancel pointerleave', this._elem, this._pointerListener);
-            this._removeEventListeners('wheel', this._elem, this._wheelListener);
+                this._removeEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._touchListener);
+            } else {
+                this._removeEventListeners('pointerdown', this._elem, this._pointerListener);
+                this._removeEventListeners('pointermove pointerup pointercancel pointerleave', this._elem, this._pointerListener);
+                this._removeEventListeners('wheel', this._elem, this._wheelListener);
+                this._removeEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._preventTouch);
+            }
         },
 
         _addEventListeners: function (types, elem, callback) {
@@ -73,8 +82,14 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             }, this);
         },
 
+        _preventTouch: function (event) {
+            event.preventDefault();
+        },
+
         _mouseEventHandler: function (event) {
-            console.log('Mouse');
+            if (this._isDebug) {
+                console.log('Mouse', EVENTS[event.type]);
+            }
 
             event.preventDefault();
 
@@ -97,18 +112,28 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         },
 
         _wheelEventHandler: function (event) {
-            console.log('Wheel');
+            if (this._isDebug) {
+                console.log('Wheel');
+            }
 
             event.preventDefault();
 
+            var elemOffset = this._calculateElementOffset(this._elem);
+
             this._callback({
                 type: EVENTS[event.type],
-                deltaY: event.deltaY
+                deltaY: event.deltaY,
+                targetPoint: {
+                    x: event.clientX - elemOffset.x,
+                    y: event.clientY - elemOffset.y
+                },
             });
         },
 
         _touchEventHandler: function (event) {
-            console.log('Touch');
+            if (this._isDebug) {
+                console.log('Touch', EVENTS[event.type]);
+            }
 
             event.preventDefault();
 
@@ -155,23 +180,38 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         },
 
         _pointerEventHandler: function (event) {
-            console.log('Pointer', EVENTS[event.type]);
+            if (!EVENTS[event.type]) {
+                return;
+            }
+
+            if (this._isDebug) {
+                console.log('Pointer', EVENTS[event.type]);
+            }
+
+            if (event.type === 'pointerdown') {
+                this._addEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
+            } else if (event.type === 'pointerup') {
+                this._removeEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
+            }
 
             var targetPoint;
             var distance = 1;
             var elemOffset = this._calculateElementOffset(this._elem);
 
+            // Если событие pointerdown и массив касаний заполнен, то очищаем его
             if (event.type === 'pointerdown') {
                 if (Object.keys(this._pointers).length === 2) {
                     this._pointers = {};
                 }
             }
 
+            // Добавляем новое касание в объект касаний
             this._pointers[event.pointerId] = {
                 x: event.clientX,
                 y: event.clientY
             }
 
+            // Удаляем касание при событии end
             if (event.type === 'pointerup' || event.type === 'pointerleave' || event.type === 'pointercancel') {
                 delete this._pointers[event.pointerId];
             }
@@ -204,6 +244,7 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             this._callback({
                 type: EVENTS[event.type],
                 targetPoint: targetPoint,
+                pointerType: event.pointerType,
                 distance: distance
             });
 

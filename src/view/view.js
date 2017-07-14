@@ -28,12 +28,15 @@ ym.modules.define('shri2017.imageViewer.View', [
         },
 
         getState: function () {
-            // !
             return Object.assign({}, this._state);
         },
 
         setState: function (state) {
-            // !
+            // Запрещаем масштабирование, если scale меньше 0.1 или больше 0.9
+            if (state.scale && (state.scale < 0.1 || state.scale > 0.9)) {
+                return;
+            }
+
             this._state = Object.assign({}, this._state, state);
             this._setTransform(this._state);
         },
@@ -47,12 +50,14 @@ ym.modules.define('shri2017.imageViewer.View', [
             if (this._curURL === data.url) {
                 var image = data.image;
                 this._properties.image = image;
+
                 // Рассчитываем такой масштаб,
                 // чтобы сразу все изображение отобразилось
                 var containerSize = this._properties.size;
                 var zoom = (image.width > image.height) ?
                     containerSize.width / image.width :
                     containerSize.height / image.height;
+
                 this.setState({
                     positionX: - (image.width * zoom - containerSize.width) / 2,
                     positionY: - (image.height * zoom - containerSize.height) / 2,
@@ -63,12 +68,15 @@ ym.modules.define('shri2017.imageViewer.View', [
 
         _setTransform: function (state) {
             var ctx = this._holderElem.getContext('2d');
+
             // Сбрасываем текущую трансформацию холста
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, this._properties.size.width, this._properties.size.height);
+
             // Устаналиваем новую
             ctx.translate(state.pivotPointX, state.pivotPointY);
             ctx.scale(state.scale, state.scale);
+
             // Отрисовываем изображение с учетом текущей "стержневой" точки
             ctx.drawImage(
                 this._properties.image,

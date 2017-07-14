@@ -2,19 +2,22 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
     'shri2017.imageViewer.EventManager'
 ], function (provide, EventManager) {
 
-    var DBL_TAB_STEP = 0.2;
+    var DBL_TAB_STEP = 0.2,
+        ZOOM_DIVIDER_RATE = 500;
 
     var Controller = function (view) {
         this._view = view;
+
         this._eventManager = new EventManager(
             this._view.getElement(),
             this._eventHandler.bind(this)
         );
+
         this._lastEventTypes = '';
 
         // Флаги жестов
         this._isOneFingerZoom = false;
-        this._isDrag = false;
+        this._isMultitouchZoom = false;
 
     };
 
@@ -24,76 +27,81 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
         },
 
         _eventHandler: function (event) {
+
             var state = this._view.getState();
 
             // Каждые 500ms обнуляем строку последний событий
             if (this._lastEventTypes) {
                 setTimeout(function () {
                     this._lastEventTypes = '';
-                }.bind(this), 500);
+                }.bind(this), 400);
             }
 
             // Заполняем строку последних событий
             this._lastEventTypes += ' ' + event.type;
 
             // Ловим двойной клик
-            if ((this._lastEventTypes.indexOf('start end start end') > -1) ||
-               (this._lastEventTypes.indexOf('start end end start end end') > -1)) {
-
-                this._lastEventTypes = '';
+            if (this._lastEventTypes.match(/start end start end/)) {
                 this._processDbltab(event);
-                return;
+                this._lastEventTypes = '';
             }
 
-            if (event.type === 'move') {
-                if (event.distance > 1 && event.distance !== this._initEvent.distance) {
-                    this._processMultitouch(event);
+            // Ловим Multitouch Zoom
+            if (event.distance > 1 && event.distance !== this._initEvent.distance) {
+                this._isMultitouchZoom = true;
+                this._lastEventTypes = '';
+            }
+            
+            // Ловим One Finger Zoom
+            if (this._lastEventTypes.match(/start.+end start move/)) {
+                this._isOneFingerZoom = true;
+                this._lastEventTypes = '';
+            }
+
+            // При событии move выбираем жест для выполнения
+            if (event.type === 'move') { 
+                if (this._isMultitouchZoom) {
+                    this._processMultitouchZoom(event);
                 } else if (this._isOneFingerZoom) {
                     this._processOneFingerZoom(event);
-                } else if (this._isDrag) {
+                } else {
                     this._processDrag(event);
                 }
             } else {
                 this._initState = this._view.getState();
                 this._initEvent = event;
             }
-            
-            // Ловим One Finger Zoom
-            if ((this._lastEventTypes.indexOf('start end start move') > -1) || 
-                (this._lastEventTypes.indexOf('start end end start move') > -1)) {
-                    
-                this._isOneFingerZoom = true;
-                this._lastEventTypes = '';
-            }
-
-            // Ловим Drag
-            if (this._lastEventTypes.indexOf('start move') > -1) {
-                this._isDrag = true;
-                this._lastEventTypes = '';
-            }
 
             // Сбрасываем флаги жестов при событии end
             if (event.type === 'end') {
                 this._isOneFingerZoom = false;
-                this._isDrag = false;
+                this._isMultitouchZoom = false;
             }
 
+            // Обрабатываем колёсико мыши
             if (event.type === 'wheel') {
                 this._processWheel(event);
             }
-
         },
 
         _processOneFingerZoom: function (event) {
-            this._view.setState({
-                scale: this._initState.scale + (event.targetPoint.y - this._initEvent.targetPoint.y) / 500
-            })
+            if (event.pointerType !== 'touch') {
+                return;
+            }
+
+            var state = this._view.getState();
+            this._scale(
+                event.targetPoint,
+                this._initState.scale + (event.targetPoint.y - this._initEvent.targetPoint.y) / ZOOM_DIVIDER_RATE
+            );
         },
 
         _processWheel: function (event) {
-            this._view.setState({
-                scale: this._initState.scale - event.deltaY / 500
-            })
+            var state = this._view.getState();
+            this._scale(
+                event.targetPoint,
+                state.scale - event.deltaY / ZOOM_DIVIDER_RATE
+            );
         },
 
         _processDrag: function (event) {
@@ -103,7 +111,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
             });
         },
 
-        _processMultitouch: function (event) {
+        _processMultitouchZoom: function (event) {
             this._scale(
                 event.targetPoint,
                 this._initState.scale * (event.distance / this._initEvent.distance)
