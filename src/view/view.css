@@ -6,6 +6,7 @@ html, body {
 #holder {
     margin: 20px auto;
     width: 700px;
+    touch-action: none;
 }
 
 .image-viewer__view {

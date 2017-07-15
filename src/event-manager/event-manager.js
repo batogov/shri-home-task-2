@@ -1,5 +1,6 @@
 ym.modules.define('shri2017.imageViewer.EventManager', [
-], function (provide) {
+    'util.extend'
+], function (provide, extend) {
 
     var EVENTS = {
         mousedown: 'start',
@@ -29,7 +30,7 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         this._setupListeners();
     }
 
-    Object.assign(EventManager.prototype, {
+    extend(EventManager.prototype, {
         destroy: function () {
             this._teardownListeners();
         },
@@ -197,7 +198,7 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
                 this._pointers[event.pointerId] = event;
                 this._addEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
 
-                this._elem.style.touchAction = 'none';
+                //this._elem.style.touchAction = 'none';
             } else if (event.type === 'pointerup' || event.type === 'pointercancel') {
                 // Удаляем касание из объекта
                 delete this._pointers[event.pointerId];
@@ -206,7 +207,7 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
                 if (Object.keys(this._pointers).length === 0) {
                     this._removeEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
 
-                    this._elem.style.touchAction = 'auto';
+                    //this._elem.style.touchAction = 'auto';
                 }
             } else if (event.type === 'pointermove') {
                 // Обновляем данные касания
