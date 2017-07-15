@@ -64,7 +64,7 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
                 this._removeEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._touchListener);
             } else {
                 this._removeEventListeners('pointerdown', this._elem, this._pointerListener);
-                this._removeEventListeners('pointermove pointerup pointercancel pointerleave', this._elem, this._pointerListener);
+                this._removeEventListeners('pointermove pointerup pointercancel', this._elem, this._pointerListener);
                 this._removeEventListeners('wheel', this._elem, this._wheelListener);
                 this._removeEventListeners('touchstart touchmove touchend touchcancel', this._elem, this._preventTouch);
             }
@@ -180,6 +180,8 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
         },
 
         _pointerEventHandler: function (event) {
+            event.preventDefault();
+
             if (!EVENTS[event.type]) {
                 return;
             }
@@ -189,53 +191,48 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             }
 
             if (event.type === 'pointerdown') {
+                this._pointers[event.pointerId] = event;
                 this._addEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
-            } else if (event.type === 'pointerup') {
-                this._removeEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
+            } else if (event.type === 'pointerup' || event.type === 'pointercancel') {
+                delete this._pointers[event.pointerId];
+                if (Object.keys(this._pointers).length === 0) {
+                    this._removeEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
+                }
+            } else if (event.type === 'pointermove') {
+                this._pointers[event.pointerId] = event;
             }
 
             var targetPoint;
             var distance = 1;
             var elemOffset = this._calculateElementOffset(this._elem);
 
-            // Если событие pointerdown и массив касаний заполнен, то очищаем его
-            if (event.type === 'pointerdown') {
-                if (Object.keys(this._pointers).length === 2) {
-                    this._pointers = {};
+            if (Object.keys(this._pointers).length === 1) {
+                targetPoint = {
+                    x: this._pointers[Object.keys(this._pointers)[0]].clientX,
+                    y: this._pointers[Object.keys(this._pointers)[0]].clientY
                 }
-            }
-
-            // Добавляем новое касание в объект касаний
-            this._pointers[event.pointerId] = {
-                x: event.clientX,
-                y: event.clientY
-            }
-
-            // Удаляем касание при событии end
-            if (event.type === 'pointerup' || event.type === 'pointerleave' || event.type === 'pointercancel') {
-                delete this._pointers[event.pointerId];
-            }
-
-            if (Object.keys(this._pointers).length === 2) {
+            } else if (Object.keys(this._pointers).length > 1) {
                 var firstTouch = this._pointers[Object.keys(this._pointers)[0]];
                 var secondTouch = this._pointers[Object.keys(this._pointers)[1]];
 
-                targetPoint = this._calculateTargetPoint(firstTouch.x, 
-                    firstTouch.y,
-                    secondTouch.x,
-                    secondTouch.y
+                targetPoint = this._calculateTargetPoint(
+                    firstTouch.clientX, 
+                    firstTouch.clientY,
+                    secondTouch.clientX,
+                    secondTouch.clientY
                 );
 
-                distance = this._calculateDistance(firstTouch.x, 
-                    firstTouch.y,
-                    secondTouch.x,
-                    secondTouch.y
+                distance = this._calculateDistance(
+                    firstTouch.clientX, 
+                    firstTouch.clientY,
+                    secondTouch.clientX,
+                    secondTouch.clientY
                 );
             } else {
-                var targetPoint = {
-                    x: event.clientX - elemOffset.x,
-                    y: event.clientY - elemOffset.y
-                };
+                targetPoint = {
+                    x: event.clientX,
+                    y: event.clientY
+                }
             }
 
             targetPoint.x -= elemOffset.x;

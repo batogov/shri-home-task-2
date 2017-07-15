@@ -32,8 +32,8 @@ ym.modules.define('shri2017.imageViewer.View', [
         },
 
         setState: function (state) {
-            // Запрещаем масштабирование, если scale меньше 0.1 или больше 0.9
-            if (state.scale && (state.scale < 0.1 || state.scale > 0.9)) {
+            // Запрещаем масштабирование, если scale меньше 0.2 или больше 3
+            if (state.scale && (state.scale < 0.2 || state.scale > 3)) {
                 return;
             }
 

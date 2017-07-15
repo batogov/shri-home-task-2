@@ -41,7 +41,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
             this._lastEventTypes += ' ' + event.type;
 
             // Ловим двойной клик
-            if (this._lastEventTypes.match(/start end start end/)) {
+            if (this._lastEventTypes.match(/start.+end start.+end/)) {
                 this._processDbltab(event);
                 this._lastEventTypes = '';
             }
@@ -85,7 +85,9 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
         },
 
         _processOneFingerZoom: function (event) {
-            if (event.pointerType !== 'touch') {
+            // Блокируем One Finger Zoom, если у клиента 
+            // Pointer Events + touch ввод
+            if (!window.PointerEvent && event.pointerType !== 'touch') {
                 return;
             }
 
