@@ -178,7 +178,8 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             this._callback({
                 type: EVENTS[event.type],
                 targetPoint: targetPoint,
-                distance: distance
+                distance: distance,
+                isTouch: true
             });
         },
 
@@ -253,8 +254,8 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             this._callback({
                 type: EVENTS[event.type],
                 targetPoint: targetPoint,
-                pointerType: event.pointerType,
-                distance: distance
+                distance: distance,
+                isTouch: event.pointerType === 'touch'
             });
 
         },

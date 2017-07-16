@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title></title>
+    <title>Сенсорные события</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <script src="build/index.js"></script>
     <script>
@@ -15,13 +14,14 @@
                     height: 700
                 }
             });
+
+            document.getElementById('holder').addEventListener('gesturestart', function(event) {
+                event.preventDefault();
+            });
         });
     </script>
 </head>
-
 <body>
-    <div id=holder>
-    </div>
+    <div id="holder"></div>
 </body>
-
 </html>

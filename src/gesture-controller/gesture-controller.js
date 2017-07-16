@@ -3,7 +3,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
     'util.extend'
 ], function (provide, EventManager, extend) {
 
-    var DBL_TAB_STEP = 0.2,
+    var DBL_TAB_STEP = 0.25,
         ZOOM_DIVIDER_RATE = 500;
 
     var Controller = function (view) {
@@ -20,6 +20,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
         this._isOneFingerZoom = false;
         this._isMultitouchZoom = false;
 
+        this._oneFingerZoomPoint = {};
     };
 
     extend(Controller.prototype, {
@@ -42,7 +43,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
             this._lastEventTypes += ' ' + event.type;
 
             // Ловим двойной клик
-            if (this._lastEventTypes.match(/start.+end start.+end/)) {
+            if (this._lastEventTypes.match(/start.+end start end/)) {
                 this._processDbltab(event);
                 this._lastEventTypes = '';
             }
@@ -56,6 +57,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
             // Ловим One Finger Zoom
             if (this._lastEventTypes.match(/start.+end start move/)) {
                 this._isOneFingerZoom = true;
+                this._oneFingerZoomPoint = event.targetPoint;
                 this._lastEventTypes = '';
             }
 
@@ -86,15 +88,14 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
         },
 
         _processOneFingerZoom: function (event) {
-            // Блокируем One Finger Zoom, если у клиента 
-            // Pointer Events + touch ввод
-            if (!window.PointerEvent && event.pointerType !== 'touch') {
+            // Блокируем One Finger Zoom, если у клиента не touch
+            if (!event.isTouch) {
                 return;
             }
 
             var state = this._view.getState();
             this._scale(
-                event.targetPoint,
+                this._oneFingerZoomPoint,
                 this._initState.scale + (event.targetPoint.y - this._initEvent.targetPoint.y) / ZOOM_DIVIDER_RATE
             );
         },
