@@ -3,7 +3,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
     'util.extend'
 ], function (provide, EventManager, extend) {
 
-    var DBL_TAB_STEP = 0.25,
+    var DBL_TAP_STEP = 0.25,
         ZOOM_DIVIDER_RATE = 500;
 
     var Controller = function (view) {
@@ -41,7 +41,7 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
 
             if (this._lastEventTypes.match(/start.+end start end/)) {
                 // Ловим двойной клик
-                this._processDbltab(event);
+                this._processDbltap(event);
                 this._lastEventTypes = '';
             } else if (event.distance > 1 && event.distance !== this._initEvent.distance) {
                 // Ловим Multitouch Zoom
@@ -115,11 +115,11 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
             );
         },
 
-        _processDbltab: function (event) {
+        _processDbltap: function (event) {
             var state = this._view.getState();
             this._scale(
                 event.targetPoint,
-                state.scale + DBL_TAB_STEP
+                state.scale + DBL_TAP_STEP
             );
         },
 
