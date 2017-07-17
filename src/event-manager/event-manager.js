@@ -55,6 +55,10 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
             // Вешаем обработчик на колёсико мыши
             this._wheelListener = this._wheelEventHandler.bind(this);
             this._addEventListeners('wheel', this._elem, this._wheelListener);
+
+            this._elem.addEventListener('gesturestart', function(event) {
+                event.preventDefault();
+            });
         },
 
         _teardownListeners: function () {
@@ -198,8 +202,6 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
                 // Записываем новое касание в объект с касаниями
                 this._pointers[event.pointerId] = event;
                 this._addEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
-
-                //this._elem.style.touchAction = 'none';
             } else if (event.type === 'pointerup' || event.type === 'pointercancel') {
                 // Удаляем касание из объекта
                 delete this._pointers[event.pointerId];
@@ -207,8 +209,6 @@ ym.modules.define('shri2017.imageViewer.EventManager', [
                 // Если больше касаний нет, то убираем слушатели
                 if (Object.keys(this._pointers).length === 0) {
                     this._removeEventListeners('pointermove pointerup', document.documentElement, this._pointerListener);
-
-                    //this._elem.style.touchAction = 'auto';
                 }
             } else if (event.type === 'pointermove') {
                 // Обновляем данные касания

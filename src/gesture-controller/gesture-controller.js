@@ -29,33 +29,26 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
         },
 
         _eventHandler: function (event) {
-
-            var state = this._view.getState();
-
             // Каждые 500ms обнуляем строку последний событий
             if (this._lastEventTypes) {
                 setTimeout(function () {
                     this._lastEventTypes = '';
-                }.bind(this), 400);
+                }.bind(this), 500);
             }
 
             // Заполняем строку последних событий
             this._lastEventTypes += ' ' + event.type;
 
-            // Ловим двойной клик
             if (this._lastEventTypes.match(/start.+end start end/)) {
+                // Ловим двойной клик
                 this._processDbltab(event);
                 this._lastEventTypes = '';
-            }
-
-            // Ловим Multitouch Zoom
-            if (event.distance > 1 && event.distance !== this._initEvent.distance) {
+            } else if (event.distance > 1 && event.distance !== this._initEvent.distance) {
+                // Ловим Multitouch Zoom
                 this._isMultitouchZoom = true;
                 this._lastEventTypes = '';
-            }
-            
-            // Ловим One Finger Zoom
-            if (this._lastEventTypes.match(/start.+end start move/)) {
+            } else if (this._lastEventTypes.match(/start.+end start move/)) {
+                // Ловим One Finger Zoom
                 this._isOneFingerZoom = true;
                 this._oneFingerZoomPoint = event.targetPoint;
                 this._lastEventTypes = '';
