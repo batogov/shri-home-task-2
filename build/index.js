@@ -3126,8 +3126,6 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
         // Флаги жестов
         this._isOneFingerZoom = false;
         this._isMultitouchZoom = false;
-
-        this._oneFingerZoomPoint = {};
     };
 
     extend(Controller.prototype, {
@@ -3146,7 +3144,10 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
             // Заполняем строку последних событий
             this._lastEventTypes += ' ' + event.type;
 
-            if (this._lastEventTypes.match(/start.+end start end/)) {
+            // Убираем случайные move события
+            this._lastEventTypes = this._lastEventTypes.replace(/move /g, '');
+
+            if (this._lastEventTypes.match(/start end start end/)) {
                 // Ловим двойной клик
                 this._processDbltap(event);
                 this._lastEventTypes = '';
@@ -3154,10 +3155,9 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
                 // Ловим Multitouch Zoom
                 this._isMultitouchZoom = true;
                 this._lastEventTypes = '';
-            } else if (this._lastEventTypes.match(/start.+end start move/)) {
+            } else if (this._lastEventTypes.match(/start end start move/)) {
                 // Ловим One Finger Zoom
                 this._isOneFingerZoom = true;
-                this._oneFingerZoomPoint = event.targetPoint;
                 this._lastEventTypes = '';
             }
 
@@ -3191,11 +3191,11 @@ ym.modules.define('shri2017.imageViewer.GestureController', [
             // Блокируем One Finger Zoom, если у клиента не touch
             if (!event.isTouch) {
                 return;
-            }
+            } 
 
             var state = this._view.getState();
             this._scale(
-                this._oneFingerZoomPoint,
+                this._initEvent.targetPoint,
                 this._initState.scale + (event.targetPoint.y - this._initEvent.targetPoint.y) / ZOOM_DIVIDER_RATE
             );
         },
